@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Схема с выбором блоков и кнопкой "Выбрать всё"</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Общие стили для контейнера блока */
+        .block-container {
+            position: relative;
+            border-radius: 0.5rem;
+            transition: box-shadow 0.2s ease-in-out, background-color 0.2s ease-in-out;
+            cursor: pointer;
+            display: inline-block;
+            padding: 0;
+        }
+        .block-container.selected {
+            box-shadow: 0 0 0 3px #3b82f6, 0 0 0 6px #dbeafe;
+        }
+
+        /* Стили для самой кнопки внутри блока */
+        .block-button {
+            border-radius: 0.5rem;
+            transition: background-color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        /* Стили для всплывающего меню */
+        .popup-menu {
+            position: absolute;
+            z-index: 10;
+            min-width: 150px;
+            border-radius: 0.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            background-color: #ffffff;
+            visibility: hidden;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+        }
+
+        /* Стили для пунктов меню */
+        .popup-item {
+            display: block;
+            padding: 0.75rem 1rem;
+            text-decoration: none;
+            color: #1f2937;
+            transition: background-color 0.2s ease;
+        }
+        .popup-item:hover {
+            background-color: #f3f4f6;
+        }
+        .popup-item:last-child {
+            border-bottom-left-radius: 0.5rem;
+            border-bottom-right-radius: 0.5rem;
+        }
+        .popup-item:first-child {
+            border-top-left-radius: 0.5rem;
+            border-top-right-radius: 0.5rem;
+        }
+
+        /* --- Адаптивное позиционирование всплывающих окон --- */
+
+        /* Для левых кнопок (действия справа) */
+        .block-container.left-column-item .popup-menu {
+            top: 0;
+            left: 110%;
+            transform: translateY(-50%);
+        }
+        .block-container.left-column-item:hover .popup-menu {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        /* Для правых кнопок (действия слева) */
+        .block-container.right-column-item .popup-menu {
+            top: 0;
+            right: 110%;
+            left: auto;
+            transform: translateY(-50%);
+        }
+        .block-container.right-column-item:hover .popup-menu {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        /* Для кнопок в верхнем, нижнем рядах или центральных, если они будут */
+        .block-container.default-popup .popup-menu {
+            top: 110%;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        .block-container.default-popup:hover .popup-menu {
+            visibility: visible;
+            opacity: 1;
+        }
+
+
+        /* Стили для кнопки выполнения действия */
+        .action-button-container {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 20;
+            display: none;
+            background-color: #ffffff;
+            padding: 1rem 1.5rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+            display: flex; /* Используем flex для размещения кнопок */
+            align-items: center;
+        }
+        .action-button-container.visible {
+            display: flex; /* Показываем, когда есть выбранные элементы */
+        }
+        #selected-count {
+            font-weight: 600;
+            margin-right: 0.75rem;
+        }
+        .action-buttons-group {
+            display: flex;
+            gap: 0.5rem; /* Пространство между кнопками */
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+
+    <div class="relative grid grid-cols-6 gap-4 p-8 bg-white rounded-lg shadow-xl w-fit">
+
+        <!-- Верхний ряд (4 кнопки) -->
+        <div class="col-start-2 col-span-4 grid grid-cols-4 gap-4">
+            <div class="block-container default-popup" data-ip="56" data-block-id="9">
+                <button class="block-button w-16 h-16 bg-blue-500 text-white rounded flex items-center justify-center shadow">56/9</button>
+                <div class="popup-menu">
+                    <a onclick="fetch(`/ssh/${56}`)" class="popup-item">Подкл. SSH</a>
+                    <a onclick="fetch(`/rdp/${56}`)" class="popup-item">Подкл. RDP</a>
+                    <a onclick="if(confirm('Точно?')){fetch(`/off/${56}`)}" class="popup-item">Выключить</a>
+                </div>
+            </div>
+            <div class="block-container default-popup" data-ip="55" data-block-id="8">
+                <button class="block-button w-16 h-16 bg-green-500 text-white rounded flex items-center justify-center shadow">55/8</button>
+                <div class="popup-menu">
+                    <a onclick="fetch(`/ssh/${55}`)" class="popup-item">Подкл. SSH</a>
+                    <a onclick="fetch(`/rdp/${55}`)" class="popup-item">Подкл. RDP</a>
+                    <a onclick="if(confirm('Точно?')){fetch(`/off/${55}`)}" class="popup-item">Выключить</a>
+                </div>
+            </div>
+            <div class="block-container default-popup" data-ip="54" data-block-id="top-3">
+                <button class="block-button w-16 h-16 bg-red-500 text-white rounded flex items-center justify-center shadow">54/7</button>
+                <div class="popup-menu">
+                    <a onclick="fetch(`/ssh/${54}`)" class="popup-item">Подкл. SSH</a>
+                    <a onclick="fetch(`/rdp/${54}`)" class="popup-item">Подкл. RDP</a>
+                    <a onclick="if(confirm('Точно?')){fetch(`/off/${54}`)}" class="popup-item">Выключить</a>
+                </div>
+            </div>
+            <div class="block-container default-popup" data-ip="62" data-block-id="top-4">
+                <button class="block-button w-16 h-16 bg-purple-500 text-white rounded flex items-center justify-center shadow">62/6</button>
+                <div class="popup-menu">
+                    <a onclick="fetch(`/ssh/${62}`)" class="popup-item">Подкл. SSH</a>
+                    <a onclick="fetch(`/rdp/${62}`)" class="popup-item">Подкл. RDP</a>
+                    <a onclick="if(confirm('Точно?')){fetch(`/off/${62}`)}" class="popup-item">Выключить</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Левая колонка (5 кнопок) -->
+        <div class="row-start-2 row-span-5 grid grid-rows-5 gap-4">
+            <div class="block-container left-column-item" data-ip="37" data-block-id="left-1">
+                <button class="block-button w-16 h-16 bg-yellow-500 text-white rounded flex items-center justify-center shadow">37/10</button>
+                <div class="popup-menu">
+                    <a onclick="fetch(`/ssh/${37}`)" class="popup-item">Подкл. SSH</a>
+                    <a onclick="fetch(`/rdp/${37}`)" class="popup-item">Подкл. RDP</a>
+                    <a onclick="if(confirm('Точно?')){fetch(`/off/${37}`)}" class="popup-item">Выключить</a>
+                </div>
+            </div>
+            <div class="block-container left-column-item" data-ip="59" data-block-id="left-2">
+                <button class="block-button w-16 h-16 bg-pink-500 text-white rounded flex items-center justify-center shadow">59/11</button>
+                <div class="popup-menu">
+                    <a onclick="fetch(`/ssh/${59}`)" class="popup-item">Подкл. SSH</a>
+                    <a onclick="fetch(`/rdp/${59}`)" class="popup-item">Подкл. RDP</a>
+                    <a onclick="if(confirm('Точно?')){fetch(`/off/${59}`)}" class="popup-item">Выключить</a>
+                </div>
+            </div>
+            <div class="block-container left-column-item" data-ip="58" data-block-id="left-3">
+                <button class="block-button w-16 h-16 bg-indigo-500 text-white rounded flex items-center justify-center shadow">58/12</button>
+                <div class="popup-menu">
+                    <a onclick="fetch(`/ssh/${58}`)" class="popup-item">Подкл. SSH</a>
+                    <a onclick="fetch(`/rdp/${58}`)" class="popup-item">Подкл. RDP</a>
+                    <a onclick="if(confirm('Точно?')){fetch(`/off/${58}`)}" class="popup-item">Выключить</a>
+                </div>
+            </div>
+            <div class="block-container left-column-item" data-ip="69" data-block-id="left-4">
+                <button class="block-button w-16 h-16 bg-teal-500 text-white rounded flex items-center justify-center shadow">69/13</button>
+                <div class="popup-menu">
+                    <a onclick="fetch(`/ssh/${69}`)" class="popup-item">Подкл. SSH</a>
+                    <a onclick="fetch(`/rdp/${69}`)" class="popup-item">Подкл. RDP</a>
+                    <a onclick="if(confirm('Точно?')){fetch(`/off/${69}`)}" class="popup-item">Выключить</a>
+                </div>
+            </div>
+            <div class="block-container left-column-item" data-ip="0" data-block-id="left-5">
+                <button class="block-button w-16 h-16 bg-orange-500 text-white rounded flex items-center justify-center shadow">?/14</button>
+                <div class="popup-menu">
+                    <a href="#" class="popup-item">Лево A</a>
+                    <a href="#" class="popup-item">Лево B</a>
+                    <a href="#" class="popup-item">Лево C</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Правая колонка (4 кнопки) -->
+        <div class="row-start-2 row-span-4 col-start-6 grid grid-rows-4 gap-4">
+            <div class="block-container right-column-item" data-ip="41" data-block-id="right-1">
+                <button class="block-button w-16 h-16 bg-blue-600 text-white rounded flex items-center justify-center shadow">41/5</button>
+                <div class="popup-menu">
+                    <a onclick="fetch(`/ssh/${41}`)" class="popup-item">Подкл. SSH</a>
+                    <a onclick="fetch(`/rdp/${41}`)" class="popup-item">Подкл. RDP</a>
+                    <a onclick="if(confirm('Точно?')){fetch(`/off/${41}`)}" class="popup-item">Выключить</a>
+                </div>
+            </div>
+            <div class="block-container right-column-item" data-ip="42" data-block-id="right-2">
+                <button class="block-button w-16 h-16 bg-green-600 text-white rounded flex items-center justify-center shadow">42/4</button>
+                <div class="popup-menu">
+                    <a onclick="fetch(`/ssh/${42}`)" class="popup-item">Подкл. SSH</a>
+                    <a onclick="fetch(`/rdp/${42}`)" class="popup-item">Подкл. RDP</a>
+                    <a onclick="if(confirm('Точно?')){fetch(`/off/${42}`)}" class="popup-item">Выключить</a>
+                </div>
+            </div>
+            <div class="block-container right-column-item" data-ip="40" data-block-id="right-3">
+                <button class="block-button w-16 h-16 bg-red-600 text-white rounded flex items-center justify-center shadow">40/3</button>
+                <div class="popup-menu">
+                    <a onclick="fetch(`/ssh/${40}`)" class="popup-item">Подкл. SSH</a>
+                    <a onclick="fetch(`/rdp/${40}`)" class="popup-item">Подкл. RDP</a>
+                    <a onclick="if(confirm('Точно?')){fetch(`/off/${40}`)}" class="popup-item">Выключить</a>
+                </div>
+            </div>
+            <div class="block-container right-column-item" data-ip="39" data-block-id="right-4">
+                <button class="block-button w-16 h-16 bg-purple-600 text-white rounded flex items-center justify-center shadow">39/2</button>
+                <div class="popup-menu">
+                    <a onclick="fetch(`/ssh/${39}`)" class="popup-item">Подкл. SSH</a>
+                    <a onclick="fetch(`/rdp/${39}`)" class="popup-item">Подкл. RDP</a>
+                    <a onclick="if(confirm('Точно?')){fetch(`/off/${39}`)}" class="popup-item">Выключить</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Нижний ряд (1 кнопка по центру, с пустыми блоками слева и справа) -->
+        <div class="row-start-6 col-start-2 col-span-4 grid grid-cols-4 gap-4">
+            <div class="col-span-1"></div> <!-- Пустой блок -->
+            <div class="block-container default-popup" data-ip="85" data-block-id="bottom-1">
+                <button class="block-button w-16 h-16 bg-gray-700 text-white rounded flex items-center justify-center shadow">85/15</button>
+                <div class="popup-menu">
+                    <a href="#" class="popup-item">Низ 1</a>
+                    <a href="#" class="popup-item">Низ 2</a>
+                    <a href="#" class="popup-item">Низ 3</a>
+                </div>
+            </div>
+            <div class="col-span-1"></div> <!-- Пустой блок -->
+            <div class="col-span-1"></div> <!-- Еще один пустой блок для выравнивания -->
+        </div>
+
+    </div>
+
+    <!-- Блок с кнопками действий -->
+    <div class="action-button-container" id="action-buttons">
+        <span id="selected-count">0</span> выбран(о).
+        <div class="action-buttons-group">
+            <button id="select-all-btn" class="ml-4 px-4 py-2 bg-gray-400 text-gray-800 rounded hover:bg-gray-500 transition duration-300">Выбрать всё</button>
+            <button id="clear-selection-btn" class="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 transition duration-300">Очистить выбор</button>
+            <div class="flex felx-col">
+                <input id="cmd-input" type="text" class="p-1">
+                <button id="execute-action-btn" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition duration-300">Выполнить действие</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const blockContainers = document.querySelectorAll('.block-container');
+            const actionButtonsContainer = document.getElementById('action-buttons');
+            const selectedCountSpan = document.getElementById('selected-count');
+            const executeActionButton = document.getElementById('execute-action-btn');
+            const clearSelectionButton = document.getElementById('clear-selection-btn');
+            const selectAllButton = document.getElementById('select-all-btn'); // Новая кнопка
+
+            let selectedBlocks = new Set();
+
+            const updateActionButtonsVisibility = () => {
+                if (selectedBlocks.size > 0) {
+                    actionButtonsContainer.classList.add('visible');
+                    selectedCountSpan.textContent = selectedBlocks.size;
+                } else {
+                    actionButtonsContainer.classList.remove('visible');
+                    selectedCountSpan.textContent = 0;
+                }
+            };
+
+            const selectBlock = (container) => {
+                const ip = container.dataset.ip;
+                if (!selectedBlocks.has(ip)) {
+                    selectedBlocks.add(ip);
+                    container.classList.add('selected');
+                    return true; // Блок был выбран
+                }
+                return false; // Блок уже был выбран
+            };
+
+            const deselectBlock = (container) => {
+                const ip = container.dataset.ip;
+                if (selectedBlocks.has(ip)) {
+                    selectedBlocks.delete(ip);
+                    container.classList.remove('selected');
+                    return true; // Блок был снят с выбора
+                }
+                return false; // Блок уже был снят с выбора
+            };
+
+            const refreshAllBlockStyles = () => {
+                blockContainers.forEach(container => {
+                    const ip = container.dataset.ip;
+                    if (selectedBlocks.has(ip)) {
+                        container.classList.add('selected');
+                    } else {
+                        container.classList.remove('selected');
+                    }
+                });
+            };
+
+            blockContainers.forEach(container => {
+                container.addEventListener('click', (event) => {
+                    const isClickInsidePopup = event.target.closest('.popup-menu');
+                    if (isClickInsidePopup) {
+                        return;
+                    }
+
+                    const ip = container.dataset.ip;
+                    if (selectedBlocks.has(ip)) {
+                        deselectBlock(container);
+                    } else {
+                        selectBlock(container);
+                    }
+                    updateActionButtonsVisibility();
+                });
+            });
+
+            executeActionButton.addEventListener('click', () => {
+                if (selectedBlocks.size === 0) {
+                    alert('Пожалуйста, выберите хотя бы один блок.');
+                    return;
+                }
+                const selectedBlockIds = Array.from(selectedBlocks);
+                alert(`Выполняется действие для блоков: ${selectedBlockIds.join(', ')}`);
+
+                command = document.getElementById('cmd-input').value
+                document.getElementById('cmd-input').value = ''
+                user = 'useradmin'
+
+                fetch('/exec', {
+                    method: 'POST',
+                    headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({cmd:command, usr:user, ids:selectedBlockIds})
+                });
+
+            });
+
+            clearSelectionButton.addEventListener('click', () => {
+                selectedBlocks.clear();
+                refreshAllBlockStyles();
+                updateActionButtonsVisibility();
+            });
+
+            // Обработчик для кнопки "Выбрать всё"
+            selectAllButton.addEventListener('click', () => {
+                blockContainers.forEach(container => {
+                    selectBlock(container); // Попытаемся выбрать каждый блок
+                });
+                updateActionButtonsVisibility();
+            });
+
+            // Инициализация при загрузке
+            updateActionButtonsVisibility();
+            refreshAllBlockStyles(); // Убедимся, что стили корректны при первой загрузке
+        });
+    </script>
+</body>
+</html>
